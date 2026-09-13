@@ -7,7 +7,7 @@
   xsi:type="TaskPaneApp">
 
   <!-- Byt ut mot ert eget GUID (valfritt, ex: via https://www.guidgenerator.com) -->
-  <Id>00000000-0000-0000-0000-000000000000</Id>
+  <Id>a057b114-ae10-4416-8ff1-b5dc1ef667e9</Id>
   <Version>1.0.0.0</Version>
   <ProviderName>Ert företagsnamn</ProviderName>
   <DefaultLocale>sv-SE</DefaultLocale>
