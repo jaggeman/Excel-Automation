@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kleer Data</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<style>
+  :root {
+    --ink: #250C2E;
+    --ink-soft: #3A1A45;
+    --slate: #7A6685;
+    --muted-on-dark: #B9A6C4;
+    --paper: #F8F3E9;
+    --line: #E7DCC8;
+    --lilac: #EEE1FB;
+    --accent: #F2A430;
+    --accent-hover: #DD8F1E;
+    --accent-ink: #250C2E;
+    --ok: #3C6E52;
+    --err: #A23B2E;
+    font-size: 15px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Segoe UI", "Inter", -apple-system, sans-serif;
+    line-height: 1.4;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 18px 16px 18px;
+    background: var(--ink);
+    background-image: radial-gradient(circle at 85% -20%, var(--ink-soft) 0%, transparent 60%);
+  }
+
+  header .mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: block;
+  }
+  header .mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  header .name {
+    color: var(--paper);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+
+  header .sub {
+    color: var(--muted-on-dark);
+    font-size: 11.5px;
+    margin-top: 1px;
+  }
+
+  main {
+    padding: 18px;
+  }
+
+  .field-label {
+    font-size: 12px;
+    color: var(--slate);
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  select, input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: #FFFFFF;
+    color: var(--ink);
+    font-size: 13.5px;
+    margin-bottom: 14px;
+    font-family: inherit;
+  }
+
+  select:focus, input[type="text"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  button.primary {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  button.primary:hover { background: var(--accent-hover); }
+  button.primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  button.primary:disabled { background: #E9DCC3; color: #A99A82; cursor: default; }
+
+  button.secondary {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--lilac);
+    color: var(--ink);
+    border: none;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button.secondary:hover { filter: brightness(0.97); }
+
+  .status {
+    margin-top: 12px;
+    font-size: 12.5px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.info { background: var(--lilac); color: var(--ink-soft); }
+  .status.ok { background: #E4EEE8; color: var(--ok); }
+  .status.err { background: #F3E4E1; color: var(--err); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--lilac);
+    border-radius: 20px;
+    padding: 3px 10px 3px 3px;
+    margin-bottom: 14px;
+  }
+  .badge .pill {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 10.5px;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 18px 0;
+  }
+
+  .preview-title {
+    font-size: 12px;
+    color: var(--slate);
+    margin-bottom: 8px;
+  }
+
+  table.preview {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.preview th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--slate);
+    border-bottom: 1px solid var(--line);
+    padding: 5px 6px;
+  }
+  table.preview td {
+    padding: 5px 6px;
+    border-bottom: 1px solid #EAE7DF;
+  }
+
+  footer {
+    padding: 10px 18px 16px 18px;
+    font-size: 11px;
+    color: var(--slate);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  footer .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="mark"><img src="assets/icon-80.png" alt="Kleer" /></div>
+    <div>
+      <div class="name">Kleer Data</div>
+      <div class="sub">Standardiserad datahämtning</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="badge"><span class="pill">Demo</span> Hämtar direkt från Kleer</div>
+
+    <label class="field-label" for="apiKey">API-nyckel</label>
+    <input type="password" id="apiKey" placeholder="Din Kleer API-nyckel" autocomplete="off" />
+
+    <label class="field-label" for="apiSecret">Secret</label>
+    <input type="password" id="apiSecret" placeholder="Din Kleer secret" autocomplete="off" />
+
+    <label class="field-label" for="period">Period</label>
+    <input type="text" id="period" placeholder="t.ex. 2026-08" />
+
+    <button class="primary" id="fetchBtn">Hämta fakturor</button>
+
+    <div class="status info" id="status">Nyckeln sparas inte – klistra in den varje gång.</div>
+
+    <hr class="divider" />
+
+    <div class="preview-title">Förhandsvisning</div>
+    <table class="preview" id="previewTable">
+      <thead>
+        <tr><th>Datum</th><th>Beskrivning</th><th>Belopp</th></tr>
+      </thead>
+      <tbody id="previewBody">
+        <tr><td colspan="3" style="color:#93A0AF;">Ingen data hämtad ännu</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <footer>
+    <span class="dot" aria-hidden="true"></span> Nyckeln lämnar aldrig den här enheten
+  </footer>
+
+<script>
+  Office.onReady(() => {
+    document.getElementById("fetchBtn").addEventListener("click", handleFetch);
+  });
+
+  function setStatus(kind, text) {
+    const el = document.getElementById("status");
+    el.className = "status show " + kind;
+    el.textContent = text;
+  }
+
+  async function handleFetch() {
+    const btn = document.getElementById("fetchBtn");
+    const apiKey = document.getElementById("apiKey").value.trim();
+    const apiSecret = document.getElementById("apiSecret").value.trim();
+    const period = document.getElementById("period").value || "innevarande period";
+
+    if (!apiKey || !apiSecret) {
+      setStatus("err", "Fyll i både API-nyckel och secret.");
+      return;
+    }
+
+    btn.disabled = true;
+    setStatus("info", "Hämtar fakturor för " + period + " …");
+
+    try {
+      // Byt ut mot Kleers riktiga endpoint när ni har den dokumenterad.
+      // Nyckel/secret skickas direkt härifrån till Kleer - inget mellansteg,
+      // eftersom det är kundens EGEN nyckel som bara lever i den här sessionen.
+      //
+      // const res = await fetch("https://api.kleer.se/v1/invoices?period=" + period, {
+      //   headers: {
+      //     "X-Api-Key": apiKey,
+      //     "X-Api-Secret": apiSecret
+      //   }
+      // });
+      // if (!res.ok) throw new Error("Kleer svarade " + res.status);
+      // const rows = await res.json();
+
+      // Platshållardata för skissen:
+      const rows = [
+        { datum: "2026-09-01", beskrivning: "Konsultarvode – Kund AB", belopp: "24 500 kr" },
+        { datum: "2026-09-03", beskrivning: "Programvarulicens", belopp: "1 290 kr" },
+      ];
+
+      renderPreview(rows);
+      await writeToSheet(rows);
+      setStatus("ok", "Klart. " + rows.length + " rader infogade i arket.");
+    } catch (err) {
+      setStatus("err", "Något gick fel: " + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function renderPreview(rows) {
+    const body = document.getElementById("previewBody");
+    body.innerHTML = "";
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + r.datum + "</td><td>" + r.beskrivning + "</td><td>" + r.belopp + "</td>";
+      body.appendChild(tr);
+    });
+  }
+
+  async function writeToSheet(rows) {
+    await Excel.run(async (context) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      const header = [["Datum", "Beskrivning", "Belopp"]];
+      const data = rows.map(r => [r.datum, r.beskrivning, r.belopp]);
+
+      const range = sheet.getRange("A1").getResizedRange(data.length, 2);
+      range.values = header.concat(data);
+      range.format.autofitColumns();
+
+      await context.sync();
+    });
+  }
+</script>
+
+</body>
+</html>
