@@ -226,20 +226,14 @@
   <main>
     <div class="badge"><span class="pill">Demo</span> Hämtar direkt från Kleer</div>
 
-    <label class="field-label" for="apiKey">API-nyckel</label>
+    <label class="field-label" for="apiToken">API-token</label>
     <div class="secret-field">
-      <input type="password" id="apiKey" placeholder="Din Kleer API-nyckel" autocomplete="off" />
-      <button type="button" class="secret-toggle" data-target="apiKey" aria-label="Visa API-nyckel">Visa</button>
+      <input type="password" id="apiToken" placeholder="Din Kleer API-token" autocomplete="off" />
+      <button type="button" class="secret-toggle" data-target="apiToken" aria-label="Visa API-token">Visa</button>
     </div>
 
-    <label class="field-label" for="apiSecret">Secret</label>
-    <div class="secret-field">
-      <input type="password" id="apiSecret" placeholder="Din Kleer secret" autocomplete="off" />
-      <button type="button" class="secret-toggle" data-target="apiSecret" aria-label="Visa secret">Visa</button>
-    </div>
-
-    <label class="field-label" for="period">Period</label>
-    <input type="text" id="period" placeholder="t.ex. 2026-08" />
+    <label class="field-label" for="period">Period (valfritt filter, t.ex. 2026-08)</label>
+    <input type="text" id="period" placeholder="Lämna tomt för alla fakturor" />
 
     <button class="primary" id="fetchBtn">Hämta fakturor</button>
 
@@ -270,12 +264,16 @@
     });
   });
 
+  // Bolaget denna add-in är byggd för (Kleer-token är knuten till ett specifikt bolag).
+  const KLEER_COMPANY_ID = "6485";
+  const KLEER_API_BASE = "https://demo.kleer.se/demo-api/v1/company/" + KLEER_COMPANY_ID;
+
   function toggleSecretVisibility(btn) {
     const input = document.getElementById(btn.dataset.target);
     const show = input.type === "password";
     input.type = show ? "text" : "password";
     btn.textContent = show ? "Dölj" : "Visa";
-    btn.setAttribute("aria-label", (show ? "Dölj " : "Visa ") + (input.id === "apiKey" ? "API-nyckel" : "secret"));
+    btn.setAttribute("aria-label", (show ? "Dölj " : "Visa ") + "API-token");
   }
 
   function setStatus(kind, text) {
@@ -286,37 +284,39 @@
 
   async function handleFetch() {
     const btn = document.getElementById("fetchBtn");
-    const apiKey = document.getElementById("apiKey").value.trim();
-    const apiSecret = document.getElementById("apiSecret").value.trim();
-    const period = document.getElementById("period").value || "innevarande period";
+    const apiToken = document.getElementById("apiToken").value.trim();
+    const period = document.getElementById("period").value.trim();
 
-    if (!apiKey || !apiSecret) {
-      setStatus("err", "Fyll i både API-nyckel och secret.");
+    if (!apiToken) {
+      setStatus("err", "Fyll i API-token.");
       return;
     }
 
     btn.disabled = true;
-    setStatus("info", "Hämtar fakturor för " + period + " …");
+    setStatus("info", "Hämtar fakturor …");
 
     try {
-      // Byt ut mot Kleers riktiga endpoint när ni har den dokumenterad.
-      // Nyckel/secret skickas direkt härifrån till Kleer - inget mellansteg,
-      // eftersom det är kundens EGEN nyckel som bara lever i den här sessionen.
-      //
-      // const res = await fetch("https://api.kleer.se/v1/invoices?period=" + period, {
-      //   headers: {
-      //     "X-Api-Key": apiKey,
-      //     "X-Api-Secret": apiSecret
-      //   }
-      // });
-      // if (!res.ok) throw new Error("Kleer svarade " + res.status);
-      // const rows = await res.json();
+      const res = await fetch(KLEER_API_BASE + "/client-invoice", {
+        headers: { "X-Token": apiToken, "Accept": "application/xml" }
+      });
 
-      // Platshållardata för skissen:
-      const rows = [
-        { datum: "2026-09-01", beskrivning: "Konsultarvode – Kund AB", belopp: "24 500 kr" },
-        { datum: "2026-09-03", beskrivning: "Programvarulicens", belopp: "1 290 kr" },
-      ];
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        if (res.status === 401) {
+          throw new Error("Ogiltig API-token (401). Kontrollera att token stämmer för bolag " + KLEER_COMPANY_ID + ".");
+        }
+        if (res.status === 403) {
+          throw new Error("Blockerad av CORS (403) – detta ursprung är inte tillåtet för den här token:en hos Kleer. " + body);
+        }
+        throw new Error("Kleer svarade " + res.status + (body ? ": " + body : ""));
+      }
+
+      const xmlText = await res.text();
+      let rows = parseInvoiceXml(xmlText);
+
+      if (period) {
+        rows = rows.filter(r => r.datum.includes(period));
+      }
 
       renderPreview(rows);
       await writeToSheet(rows);
@@ -328,12 +328,50 @@
     }
   }
 
+  // Kleers API svarar med XML. Elementnamnen för client-invoice är inte
+  // verifierade mot en riktig respons än (blockerat av CORS/VPN vid byggtillfället),
+  // så vi plockar ut fält löst baserat på vad taggnamnen ser ut att innehålla
+  // istället för att anta exakt schema.
+  function parseInvoiceXml(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    if (doc.querySelector("parsererror")) {
+      throw new Error("Kunde inte tolka XML-svaret från Kleer.");
+    }
+
+    const root = doc.documentElement;
+    const items = Array.from(root.children).length ? Array.from(root.children) : [root];
+
+    return items.map(item => {
+      const fields = {};
+      item.querySelectorAll("*").forEach(node => {
+        if (node.children.length === 0) {
+          fields[node.tagName.toLowerCase()] = node.textContent.trim();
+        }
+      });
+
+      const findField = (...keywords) => {
+        const key = Object.keys(fields).find(k => keywords.some(kw => k.includes(kw)));
+        return key ? fields[key] : "";
+      };
+
+      const datum = findField("date");
+      const belopp = findField("amount", "total", "sum");
+      const beskrivning = findField("name", "client", "customer", "description", "text", "number") || "(okänt fält – se rådata)";
+
+      return { datum, beskrivning, belopp, raw: fields };
+    });
+  }
+
   function renderPreview(rows) {
     const body = document.getElementById("previewBody");
     body.innerHTML = "";
     rows.forEach(r => {
       const tr = document.createElement("tr");
-      tr.innerHTML = "<td>" + r.datum + "</td><td>" + r.beskrivning + "</td><td>" + r.belopp + "</td>";
+      ["datum", "beskrivning", "belopp"].forEach(key => {
+        const td = document.createElement("td");
+        td.textContent = r[key];
+        tr.appendChild(td);
+      });
       body.appendChild(tr);
     });
   }
